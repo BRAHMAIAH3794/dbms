@@ -1,0 +1,155 @@
+import streamlit as st
+import psycopg2
+import pandas as pd
+
+# ---------- Database Connection ----------
+def get_connection():
+    return psycopg2.connect(
+        host="localhost",
+        dbname="university_db",
+        user="postgres",       # <-- change if needed
+        password="yourpassword",  # <-- change to your DB password
+        port=5432
+    )
+
+# ---------- Initialize DB (Schema + Sample Data) ----------
+def init_db():
+    schema_sql = """
+    CREATE TABLE IF NOT EXISTS campus (
+      campus_id SERIAL PRIMARY KEY,
+      campus_name TEXT NOT NULL,
+      location TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS student (
+      student_id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT UNIQUE,
+      campus_id INT REFERENCES campus(campus_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS course (
+      course_id SERIAL PRIMARY KEY,
+      title TEXT,
+      credits INT
+    );
+
+    CREATE TABLE IF NOT EXISTS section (
+      section_id SERIAL PRIMARY KEY,
+      course_id INT REFERENCES course(course_id),
+      term TEXT,
+      campus_id INT REFERENCES campus(campus_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS enrollment (
+      enroll_id SERIAL PRIMARY KEY,
+      student_id INT REFERENCES student(student_id),
+      section_id INT REFERENCES section(section_id),
+      grade CHAR(2)
+    );
+    """
+
+    sample_data_sql = """
+    INSERT INTO campus (campus_name, location) VALUES
+    ('Main Campus', 'New York'),
+    ('South Campus', 'Texas'),
+    ('West Campus', 'California')
+    ON CONFLICT DO NOTHING;
+
+    INSERT INTO student (name, email, campus_id) VALUES
+    ('Alice Johnson', 'alice@example.com', 1),
+    ('Bob Smith', 'bob@example.com', 2),
+    ('Charlie Rao', 'charlie@example.com', 3)
+    ON CONFLICT DO NOTHING;
+
+    INSERT INTO course (title, credits) VALUES
+    ('Database Systems', 3),
+    ('Computer Networks', 4),
+    ('Algorithms', 3)
+    ON CONFLICT DO NOTHING;
+
+    INSERT INTO section (course_id, term, campus_id) VALUES
+    (1, 'Fall2025', 1),
+    (2, 'Fall2025', 2),
+    (3, 'Fall2025', 3)
+    ON CONFLICT DO NOTHING;
+
+    INSERT INTO enrollment (student_id, section_id, grade) VALUES
+    (1, 1, 'A'),
+    (2, 2, 'B'),
+    (3, 3, 'A')
+    ON CONFLICT DO NOTHING;
+    """
+
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(schema_sql)
+    cur.execute(sample_data_sql)
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+# ---------- Run Query ----------
+def run_query(query, params=None):
+    conn = get_connection()
+    df = None
+    try:
+        with conn.cursor() as cur:
+            cur.execute(query, params or ())
+            if cur.description:  # SELECT
+                df = pd.DataFrame(cur.fetchall(), columns=[desc[0] for desc in cur.description])
+            conn.commit()
+    finally:
+        conn.close()
+    return df
+
+
+# ---------- Streamlit UI ----------
+st.set_page_config(page_title="University DB", layout="wide")
+st.title("🏫 University Database System")
+
+# Initialize DB on first run
+if "initialized" not in st.session_state:
+    init_db()
+    st.session_state["initialized"] = True
+    st.success("Database initialized with schema + sample data")
+
+menu = st.sidebar.radio("Navigation", ["View Students", "Add Student", "View Courses", "View Enrollments"])
+
+# --- View Students ---
+if menu == "View Students":
+    st.subheader("All Students")
+    data = run_query("SELECT * FROM student;")
+    st.dataframe(data)
+
+# --- Add Student ---
+elif menu == "Add Student":
+    st.subheader("Add a New Student")
+    name = st.text_input("Student Name")
+    email = st.text_input("Email")
+    campus_id = st.number_input("Campus ID", min_value=1, step=1)
+    if st.button("Insert Student"):
+        run_query(
+            "INSERT INTO student (name, email, campus_id) VALUES (%s, %s, %s);",
+            (name, email, campus_id)
+        )
+        st.success("✅ Student inserted successfully!")
+
+# --- View Courses ---
+elif menu == "View Courses":
+    st.subheader("All Courses")
+    data = run_query("SELECT * FROM course;")
+    st.dataframe(data)
+
+# --- View Enrollments ---
+elif menu == "View Enrollments":
+    st.subheader("All Enrollments")
+    data = run_query("""
+        SELECT e.enroll_id, s.name AS student, c.title AS course, e.grade
+        FROM enrollment e
+        JOIN student s ON e.student_id = s.student_id
+        JOIN section sec ON e.section_id = sec.section_id
+        JOIN course c ON sec.course_id = c.course_id;
+    """)
+    st.dataframe(data)
