@@ -1,155 +1,141 @@
-import streamlit as st
-import psycopg2
-import pandas as pd
-
-# ---------- Database Connection ----------
-def get_connection():
-    return psycopg2.connect(
-        host="localhost",
-        dbname="university_db",
-        user="postgres",       # <-- change if needed
-        password="yourpassword",  # <-- change to your DB password
-        port=5432
-    )
-
-# ---------- Initialize DB (Schema + Sample Data) ----------
 def init_db():
-    schema_sql = """
-    CREATE TABLE IF NOT EXISTS campus (
-      campus_id SERIAL PRIMARY KEY,
-      campus_name TEXT NOT NULL,
-      location TEXT
-    );
+    schema_sql = [
+        """
+        CREATE TABLE IF NOT EXISTS campus (
+          campus_id SERIAL PRIMARY KEY,
+          campus_name TEXT NOT NULL UNIQUE,
+          location TEXT
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS student (
+          student_id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL,
+          email TEXT UNIQUE,
+          campus_id INT REFERENCES campus(campus_id)
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS course (
+          course_id SERIAL PRIMARY KEY,
+          title TEXT UNIQUE,
+          credits INT
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS section (
+          section_id SERIAL PRIMARY KEY,
+          course_id INT REFERENCES course(course_id),
+          term TEXT,
+          campus_id INT REFERENCES campus(campus_id)
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS enrollment (
+          enroll_id SERIAL PRIMARY KEY,
+          student_id INT REFERENCES student(student_id),
+          section_id INT REFERENCES section(section_id),
+          grade CHAR(2)
+        );
+        """
+    ]
 
-    CREATE TABLE IF NOT EXISTS student (
-      student_id SERIAL PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT UNIQUE,
-      campus_id INT REFERENCES campus(campus_id)
-    );
+    sample_data_sql = [
+        # --- Campuses ---
+        "INSERT INTO campus (campus_name, location) VALUES ('Main Campus', 'New York') ON CONFLICT DO NOTHING;",
+        "INSERT INTO campus (campus_name, location) VALUES ('South Campus', 'Texas') ON CONFLICT DO NOTHING;",
+        "INSERT INTO campus (campus_name, location) VALUES ('West Campus', 'California') ON CONFLICT DO NOTHING;",
+        "INSERT INTO campus (campus_name, location) VALUES ('North Campus', 'Chicago') ON CONFLICT DO NOTHING;",
+        "INSERT INTO campus (campus_name, location) VALUES ('East Campus', 'Florida') ON CONFLICT DO NOTHING;",
 
-    CREATE TABLE IF NOT EXISTS course (
-      course_id SERIAL PRIMARY KEY,
-      title TEXT,
-      credits INT
-    );
+        # --- Courses ---
+        "INSERT INTO course (title, credits) VALUES ('Database Systems', 3) ON CONFLICT DO NOTHING;",
+        "INSERT INTO course (title, credits) VALUES ('Computer Networks', 4) ON CONFLICT DO NOTHING;",
+        "INSERT INTO course (title, credits) VALUES ('Algorithms', 3) ON CONFLICT DO NOTHING;",
+        "INSERT INTO course (title, credits) VALUES ('Operating Systems', 4) ON CONFLICT DO NOTHING;",
+        "INSERT INTO course (title, credits) VALUES ('Artificial Intelligence', 3) ON CONFLICT DO NOTHING;",
+        "INSERT INTO course (title, credits) VALUES ('Machine Learning', 3) ON CONFLICT DO NOTHING;",
+        "INSERT INTO course (title, credits) VALUES ('Cyber Security', 4) ON CONFLICT DO NOTHING;",
+        "INSERT INTO course (title, credits) VALUES ('Data Mining', 3) ON CONFLICT DO NOTHING;",
+        "INSERT INTO course (title, credits) VALUES ('Software Engineering', 4) ON CONFLICT DO NOTHING;",
+        "INSERT INTO course (title, credits) VALUES ('Cloud Computing', 3) ON CONFLICT DO NOTHING;",
 
-    CREATE TABLE IF NOT EXISTS section (
-      section_id SERIAL PRIMARY KEY,
-      course_id INT REFERENCES course(course_id),
-      term TEXT,
-      campus_id INT REFERENCES campus(campus_id)
-    );
+        # --- Students (25 total) ---
+        "INSERT INTO student (name, email, campus_id) VALUES ('Alice Johnson', 'alice@example.com', 1) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Bob Smith', 'bob@example.com', 2) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Charlie Rao', 'charlie@example.com', 3) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Diana Lopez', 'diana@example.com', 1) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Ethan Brown', 'ethan@example.com', 2) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Fiona Zhang', 'fiona@example.com', 4) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('George Patel', 'george@example.com', 5) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Hannah Wilson', 'hannah@example.com', 3) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Ian Thomas', 'ian@example.com', 2) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Julia Kim', 'julia@example.com', 1) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Kevin White', 'kevin@example.com', 4) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Liam Davis', 'liam@example.com', 5) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Maya Singh', 'maya@example.com', 3) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Nathan Reed', 'nathan@example.com', 2) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Olivia Chen', 'olivia@example.com', 1) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Peter Kumar', 'peter@example.com', 4) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Quinn Lee', 'quinn@example.com', 5) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Rita Johnson', 'rita@example.com', 3) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Samir Ahmed', 'samir@example.com', 1) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Tina Moore', 'tina@example.com', 2) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Uma Reddy', 'uma@example.com', 4) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Victor Green', 'victor@example.com', 5) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Wendy Harris', 'wendy@example.com', 3) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Xavier Collins', 'xavier@example.com', 1) ON CONFLICT DO NOTHING;",
+        "INSERT INTO student (name, email, campus_id) VALUES ('Yara Banerjee', 'yara@example.com', 2) ON CONFLICT DO NOTHING;",
 
-    CREATE TABLE IF NOT EXISTS enrollment (
-      enroll_id SERIAL PRIMARY KEY,
-      student_id INT REFERENCES student(student_id),
-      section_id INT REFERENCES section(section_id),
-      grade CHAR(2)
-    );
-    """
+        # --- Sections (10 total) ---
+        "INSERT INTO section (course_id, term, campus_id) VALUES (1, 'Fall2025', 1) ON CONFLICT DO NOTHING;",
+        "INSERT INTO section (course_id, term, campus_id) VALUES (2, 'Fall2025', 2) ON CONFLICT DO NOTHING;",
+        "INSERT INTO section (course_id, term, campus_id) VALUES (3, 'Fall2025', 3) ON CONFLICT DO NOTHING;",
+        "INSERT INTO section (course_id, term, campus_id) VALUES (4, 'Fall2025', 4) ON CONFLICT DO NOTHING;",
+        "INSERT INTO section (course_id, term, campus_id) VALUES (5, 'Fall2025', 5) ON CONFLICT DO NOTHING;",
+        "INSERT INTO section (course_id, term, campus_id) VALUES (6, 'Fall2025', 1) ON CONFLICT DO NOTHING;",
+        "INSERT INTO section (course_id, term, campus_id) VALUES (7, 'Fall2025', 2) ON CONFLICT DO NOTHING;",
+        "INSERT INTO section (course_id, term, campus_id) VALUES (8, 'Fall2025', 3) ON CONFLICT DO NOTHING;",
+        "INSERT INTO section (course_id, term, campus_id) VALUES (9, 'Fall2025', 4) ON CONFLICT DO NOTHING;",
+        "INSERT INTO section (course_id, term, campus_id) VALUES (10, 'Fall2025', 5) ON CONFLICT DO NOTHING;",
 
-    sample_data_sql = """
-    INSERT INTO campus (campus_name, location) VALUES
-    ('Main Campus', 'New York'),
-    ('South Campus', 'Texas'),
-    ('West Campus', 'California')
-    ON CONFLICT DO NOTHING;
-
-    INSERT INTO student (name, email, campus_id) VALUES
-    ('Alice Johnson', 'alice@example.com', 1),
-    ('Bob Smith', 'bob@example.com', 2),
-    ('Charlie Rao', 'charlie@example.com', 3)
-    ON CONFLICT DO NOTHING;
-
-    INSERT INTO course (title, credits) VALUES
-    ('Database Systems', 3),
-    ('Computer Networks', 4),
-    ('Algorithms', 3)
-    ON CONFLICT DO NOTHING;
-
-    INSERT INTO section (course_id, term, campus_id) VALUES
-    (1, 'Fall2025', 1),
-    (2, 'Fall2025', 2),
-    (3, 'Fall2025', 3)
-    ON CONFLICT DO NOTHING;
-
-    INSERT INTO enrollment (student_id, section_id, grade) VALUES
-    (1, 1, 'A'),
-    (2, 2, 'B'),
-    (3, 3, 'A')
-    ON CONFLICT DO NOTHING;
-    """
+        # --- Enrollments (25) ---
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (1, 1, 'A') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (2, 2, 'B') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (3, 3, 'A') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (4, 4, 'B') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (5, 5, 'A') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (6, 6, 'C') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (7, 7, 'B') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (8, 8, 'A') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (9, 9, 'B') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (10, 10, 'A') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (11, 1, 'A') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (12, 2, 'B') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (13, 3, 'C') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (14, 4, 'A') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (15, 5, 'B') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (16, 6, 'A') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (17, 7, 'C') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (18, 8, 'A') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (19, 9, 'B') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (20, 10, 'A') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (21, 1, 'B') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (22, 2, 'A') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (23, 3, 'B') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (24, 4, 'C') ON CONFLICT DO NOTHING;",
+        "INSERT INTO enrollment (student_id, section_id, grade) VALUES (25, 5, 'A') ON CONFLICT DO NOTHING;"
+    ]
 
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute(schema_sql)
-    cur.execute(sample_data_sql)
+    
+    for stmt in schema_sql:
+        cur.execute(stmt)
+
+    for stmt in sample_data_sql:
+        cur.execute(stmt)
+
     conn.commit()
     cur.close()
     conn.close()
-
-
-# ---------- Run Query ----------
-def run_query(query, params=None):
-    conn = get_connection()
-    df = None
-    try:
-        with conn.cursor() as cur:
-            cur.execute(query, params or ())
-            if cur.description:  # SELECT
-                df = pd.DataFrame(cur.fetchall(), columns=[desc[0] for desc in cur.description])
-            conn.commit()
-    finally:
-        conn.close()
-    return df
-
-
-# ---------- Streamlit UI ----------
-st.set_page_config(page_title="University DB", layout="wide")
-st.title("🏫 University Database System")
-
-# Initialize DB on first run
-if "initialized" not in st.session_state:
-    init_db()
-    st.session_state["initialized"] = True
-    st.success("Database initialized with schema + sample data")
-
-menu = st.sidebar.radio("Navigation", ["View Students", "Add Student", "View Courses", "View Enrollments"])
-
-# --- View Students ---
-if menu == "View Students":
-    st.subheader("All Students")
-    data = run_query("SELECT * FROM student;")
-    st.dataframe(data)
-
-# --- Add Student ---
-elif menu == "Add Student":
-    st.subheader("Add a New Student")
-    name = st.text_input("Student Name")
-    email = st.text_input("Email")
-    campus_id = st.number_input("Campus ID", min_value=1, step=1)
-    if st.button("Insert Student"):
-        run_query(
-            "INSERT INTO student (name, email, campus_id) VALUES (%s, %s, %s);",
-            (name, email, campus_id)
-        )
-        st.success("✅ Student inserted successfully!")
-
-# --- View Courses ---
-elif menu == "View Courses":
-    st.subheader("All Courses")
-    data = run_query("SELECT * FROM course;")
-    st.dataframe(data)
-
-# --- View Enrollments ---
-elif menu == "View Enrollments":
-    st.subheader("All Enrollments")
-    data = run_query("""
-        SELECT e.enroll_id, s.name AS student, c.title AS course, e.grade
-        FROM enrollment e
-        JOIN student s ON e.student_id = s.student_id
-        JOIN section sec ON e.section_id = sec.section_id
-        JOIN course c ON sec.course_id = c.course_id;
-    """)
-    st.dataframe(data)
